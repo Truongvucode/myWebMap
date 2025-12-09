@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Web Map Routing</title>
+        <meta charset="UTF-8"> 
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        
+        <!-- CSS của Leaflet & Routing Machine -->
+        <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+        <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.css" />
+        
+        <style>
+            body { margin: 0; padding: 0; }
+            #map { position: absolute; top: 0; bottom: 0; left: 0; right: 0; }
+            
+            /* Style cho nút */
+            .map-btn {
+                position: absolute; top: 10px; right: 10px; z-index: 1000;
+                padding: 10px 15px; background: white; border: 2px solid #ccc; 
+                cursor: pointer; font-weight: bold; border-radius: 5px;
+                box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            }
+            .map-btn:hover {
+                background: #f0f0f0;
+            }
+            
+            /* Style cho popup */
+            .popup-btn {
+                display: block; width: 100%; margin-bottom: 5px; 
+                padding: 8px 10px; cursor: pointer; text-align: left;
+                border: 1px solid #ddd; border-radius: 3px;
+                background: white;
+                transition: background 0.2s;
+            }
+            .popup-btn:hover {
+                background: #e3f2fd;
+            }
+            .marker-list {
+                max-height: 150px; overflow-y: auto; 
+                border-top: 1px solid #ccc; margin-top: 5px;
+            }
+            
+            /* Custom marker cho trụ sở chính */
+            .headquarters-icon {
+                background-color: #ff4444;
+                border: 3px solid white;
+                border-radius: 50%;
+                box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+            }
+
+            /* Panel danh sách route */
+            .routes-panel {
+                position: absolute;
+                top: 60px;
+                right: 10px;
+                width: 260px;
+                max-height: 320px;
+                background: white;
+                border: 1px solid #ccc;
+                border-radius: 6px;
+                box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+                z-index: 1000;
+                padding: 8px;
+                font-size: 13px;
+                display: none; /* mặc định ẩn */
+            }
+
+            .routes-panel-header {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-bottom: 6px;
+            }
+
+            .routes-panel-header-title {
+                font-weight: bold;
+            }
+
+            .routes-panel-list {
+                max-height: 250px;
+                overflow-y: auto;
+            }
+
+            .route-item {
+                border: 1px solid #eee;
+                border-radius: 4px;
+                padding: 6px;
+                margin-bottom: 6px;
+            }
+
+            .route-item-title {
+                font-weight: bold;
+                margin-bottom: 2px;
+            }
+
+            .route-item-meta {
+                font-size: 12px;
+                color: #555;
+            }
+
+            .route-item-buttons {
+                display: flex;
+                gap: 4px;
+                margin-top: 4px;
+            }
+
+            .route-item-buttons button {
+                flex: 1;
+                font-size: 12px;
+                padding: 4px;
+                border-radius: 3px;
+                border: 1px solid #ccc;
+                cursor: pointer;
+                background: #f9f9f9;
+            }
+
+            .route-item-buttons button:hover {
+                background: #e3f2fd;
+            }
+
+            .btn-danger {
+                color: #c62828;
+                border-color: #ef9a9a;
+            }
+
+            .btn-small {
+                font-size: 11px;
+                padding: 3px 6px;
+                border-radius: 3px;
+                border: 1px solid #ccc;
+                background: #f9f9f9;
+                cursor: pointer;
+            }
+            .btn-small:hover {
+                background: #f0f0f0;
+            }
+
+            /* Cho bảng hướng dẫn có scroll nếu dài */
+            .leaflet-routing-container {
+                max-height: 260px;
+                overflow-y: auto;
+            }
+            .routes-panel-header-actions {
+                display: flex;
+                gap: 4px;
+            }
+            .search-container {
+                position: absolute;
+                top: 10px;
+                left: 10px;
+                z-index: 1000;
+                background: white;
+                border-radius: 6px;
+                box-shadow: 0 2px 6px rgba(0,0,0,0.25);
+                padding: 8px;
+                width: 260px;
+                font-size: 13px;
+            }
+
+            .search-container input[type="text"] {
+                width: 100%;
+                padding: 6px 8px;
+                border-radius: 4px;
+                border: 1px solid #ccc;
+                box-sizing: border-box;
+                margin-bottom: 6px;
+            }
+
+            .search-container button {
+                width: 100%;
+                padding: 5px 8px;
+                border-radius: 4px;
+                border: 1px solid #1976d2;
+                background: #2196f3;
+                color: white;
+                font-weight: 600;
+                cursor: pointer;
+                font-size: 13px;
+            }
+
+            .search-container button:hover {
+                background: #1976d2;
+            }
+
+            .search-results {
+                max-height: 180px;
+                overflow-y: auto;
+                margin-top: 6px;
+                border-top: 1px solid #eee;
+                padding-top: 4px;
+            }
+
+            .search-result-item {
+                padding: 4px 4px;
+                border-radius: 4px;
+                cursor: pointer;
+                border: 1px solid transparent;
+                margin-bottom: 3px;
+            }
+
+            .search-result-item:hover {
+                background: #e3f2fd;
+                border-color: #90caf9;
+            }
+
+        </style>
+    </head>
+    <body>
+        <div id="map"></div>
+        <div class="search-container">
+            <input type="text" id="search-input" placeholder="Nhập địa điểm, ví dụ: Hồ Gươm" />
+            <button id="search-btn">🔍 Tìm kiếm</button>
+            <div id="search-results" class="search-results"></div>
+        </div>
+
+        
+        <!-- Nút mở panel ROUTES -->
+        <button id="toggle-routes-btn" class="map-btn">🚗 Hiển thị route</button>
+
+        <!-- Panel danh sách route -->
+        <div id="routes-panel" class="routes-panel">
+            <div class="routes-panel-header">
+                <div class="routes-panel-header-title">Danh sách route</div>
+                <div class="routes-panel-header-actions">
+                    <button id="hide-current-route-btn" class="btn-small">Ẩn</button>
+                    <button id="clear-all-routes-btn" class="btn-small btn-danger">Xóa toàn bộ</button>
+                </div>
+            </div>
+            <div id="routes-list" class="routes-panel-list">
+                <div style="font-style:italic; color:#777;">Chưa có route nào.</div>
+            </div>
+        </div>
+
+
+        <!-- JS thư viện -->
+        <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+        <script src="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.js"></script>
+
+        <!-- JS của bạn -->
+        <script src="map-init.js"></script>
+        <script src="routes-core.js"></script>
+        <script src="routes-panel.js"></script>
+        <script src="markers.js"></script>
+        <script src="map-events.js"></script>
+        <script src="geocoding.js"></script>
+        <script src="n8n-bridge.js"></script>
+    </body>
+</html>
